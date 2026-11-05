@@ -1,0 +1,17 @@
+"""Browser-only playback of actual five-minute simulation snapshots."""
+import json
+from html import escape
+
+
+def replay_html(result, label, target):
+    data = json.dumps(result["trace"]).replace("<","\\u003c")
+    return '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>*{box-sizing:border-box}body{margin:0;font:14px system-ui;color:#dfe9ee;background:#11232f;border-radius:18px;padding:22px}
+.top{display:flex;justify-content:space-between;gap:20px;margin-bottom:22px}.tag{color:#7dd3c4;font-size:11px;letter-spacing:2px;text-transform:uppercase}
+.floor{display:grid;grid-template-columns:1fr 25px 1fr 25px 1fr;align-items:center}.station{border:1px solid #38515f;border-radius:12px;padding:18px;background:#1c3342}.name{color:#abc0cc}.count{font-size:36px;font-weight:700}.bar{height:7px;background:#294453;margin-top:12px;border-radius:9px;overflow:hidden}.fill{height:100%;background:#40c5ac;transition:width .2s}.arrow{text-align:center;color:#7d9bab}.bottom{display:flex;justify-content:space-between;margin:22px 0 14px;gap:15px}button{border:0;background:#55d1b8;color:#102b2f;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer}input{width:100%;accent-color:#55d1b8}.note{font-size:11px;color:#a3b7c2;margin-top:12px}.done{font-size:23px;font-weight:700} @media(max-width:520px){body{padding:14px}.station{padding:10px}.count{font-size:25px}.floor{grid-template-columns:1fr 15px 1fr 15px 1fr}.name{font-size:12px}}
+</style></head><body><div class="top"><div><div class="tag">SHIFT REPLAY</div><h3 style="margin:5px 0">'''+escape(label)+'''</h3></div><div id="clock"></div></div><div class="floor">
+<div class="station"><div class="name">Picking</div><div class="count" id="q0">0</div><div>waiting</div><div class="bar"><div class="fill" id="b0"></div></div></div><div class="arrow">→</div>
+<div class="station"><div class="name">Packing</div><div class="count" id="q1">0</div><div>waiting</div><div class="bar"><div class="fill" id="b1"></div></div></div><div class="arrow">→</div>
+<div class="station"><div class="name">Shipping</div><div class="count" id="q2">0</div><div>waiting</div><div class="bar"><div class="fill" id="b2"></div></div></div></div>
+<div class="bottom"><button id="play">Play shift</button><div><span class="done" id="done">0</span> completed · goal '''+str(target)+'''</div></div><input aria-label="Replay minute" id="scrub" type="range" min="0" max="0" value="0"><div class="note">Actual simulation snapshots, sampled every 5 minutes. Queue bars share one scale. One illustrative run; your result uses all 10 runs.</div>
+<script>const frames='''+data+''';let i=0,timer=null;const s=document.getElementById('scrub'),p=document.getElementById('play');s.max=frames.length-1;const keys=['Picking','Packing','Shipping'];const max=Math.max(1,...frames.flatMap(f=>keys.map(k=>f[k])));function draw(){let f=frames[i];s.value=i;document.getElementById('clock').textContent=Math.floor(f.minute/60)+'h '+(f.minute%60)+'m';document.getElementById('done').textContent=f.completed;keys.forEach((k,j)=>{document.getElementById('q'+j).textContent=f[k];document.getElementById('b'+j).style.width=(f[k]/max*100)+'%';});}function stop(){clearInterval(timer);timer=null;p.textContent='Play shift';}p.onclick=()=>{if(timer){stop();return;}if(i===frames.length-1)i=0;p.textContent='Pause';timer=setInterval(()=>{if(i>=frames.length-1){stop();return;}i++;draw();},110);};s.oninput=()=>{stop();i=+s.value;draw();};draw();</script></body></html>'''

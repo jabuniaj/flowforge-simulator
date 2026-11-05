@@ -1,7 +1,7 @@
 from streamlit.testing.v1 import AppTest
 from pathlib import Path
 
-APP = Path(__file__).resolve().parents[1] / "app.py"
+APP = Path(__file__).resolve().parents[1] / "workbench.py"
 
 
 def test_scenarios_and_export():

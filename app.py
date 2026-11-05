@@ -1,162 +1,193 @@
-"""FlowForge warehouse decision laboratory."""
-from dataclasses import asdict, replace
-from statistics import mean, stdev
-from math import ceil
-import io
+"""FlowForge — learn operations by rescuing a simulated warehouse shift."""
+from dataclasses import asdict
+from pathlib import Path
+from statistics import mean
 import json
-import zipfile
-import platform
-from importlib.metadata import version
+import runpy
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from flowforge.model import Shift, STATIONS, capacity, replicate, optimize
+import streamlit.components.v1 as components
+from flowforge.challenges import MISSIONS, SEEDS, build_plan, evaluate
+from flowforge.model import STATIONS, capacity
+from flowforge.replay_view import replay_html
 
-st.set_page_config(page_title="FlowForge | Shift Stress Test", page_icon="📦", layout="wide")
-st.markdown("<style>.block-container{max-width:1250px;padding-top:2rem}h1,h2,h3{letter-spacing:-.035em}[data-testid=stMetric]{border-top:3px solid #0d9488;padding:15px;background:rgba(13,148,136,.06)}</style>",unsafe_allow_html=True)
-st.caption("FLOWFORGE / OPERATIONS ENGINEERING LAB")
-st.title("Shift Stress Test")
-st.write("Test a disruption. Follow the queues. Find a staffing decision you can explain.")
-st.caption("Synthetic data • finite-shift SimPy simulation • no claims of measured warehouse performance")
-
-@st.cache_data(show_spinner=False)
-def runs(config, seeds):
-    return replicate(config,seeds)
+st.set_page_config(page_title="FlowForge | Rescue the shift",page_icon="📦",layout="wide")
+st.markdown('''<style>
+.block-container{max-width:1180px;padding-top:2.4rem}h1,h2,h3{letter-spacing:-.035em}h1{font-size:3.2rem!important;line-height:1.05!important}.eyebrow{font-size:11px;letter-spacing:2.4px;color:#0d8477;font-weight:800;margin-bottom:16px}.lead{font-size:19px;color:#536b77;max-width:760px;line-height:1.6}.brief{background:#122c3a;border-radius:18px;padding:28px 30px;color:#e5edf0;margin:24px 0}.brief p{color:#c5d7df;line-height:1.7;font-size:16px}.brief h2{color:white;margin:7px 0 12px}.goal{border-left:3px solid #55d1b8;padding:10px 16px;background:#203e4c;border-radius:0 8px 8px 0;color:white;font-weight:600}.step{font-size:12px;letter-spacing:1.5px;color:#0d8477;font-weight:800;margin:15px 0}.role{border:1px solid #dce5e8;border-radius:12px;padding:18px;min-height:125px;background:white}.role strong{display:block;font-size:17px;margin-bottom:8px}.role span{font-size:14px;color:#526c79}[data-testid=stMetric]{background:#f0f5f5;border-radius:12px;padding:16px}[data-testid=stMetricLabel]{font-size:13px}.stButton>button{border-radius:9px;font-weight:650}div[data-testid=stAlert]{border-radius:12px}div[data-testid=stTabs] button{font-weight:650}@media(max-width:640px){h1{font-size:2.25rem!important}.brief{padding:22px}.lead{font-size:17px}.role{min-height:100px}button{min-height:44px!important}}
+</style>''',unsafe_allow_html=True)
 
 @st.cache_data(show_spinner=False)
-def search(config):
-    return optimize(config)
+def test_plan(mid,staff,bench=False,repair=False):
+    return evaluate(MISSIONS[mid],staff,bench,repair)
 
-def summary(results):
-    out = {}
-    for key in ("completed","unfinished","throughput_per_hour","cycle_minutes","waiting_minutes","labor_cost","cost_per_order"):
-        values = [r[key] for r in results if r[key] is not None]
-        out[key] = mean(values) if values else None
-    return out
-
-def fmt(value):
-    return f"{value:,.1f}" if value is not None else "N/A"
-
-METRIC_LABELS = {"completed":"Completed orders", "unfinished":"Unfinished orders",
-                 "throughput_per_hour":"Throughput (orders/hour)","cycle_minutes":"Cycle time (min)",
-                 "waiting_minutes":"Waiting time (min)","labor_cost":"Labor cost ($)",
-                 "cost_per_order":"Labor cost / completion ($)"}
-
-def comparison_table(values):
-    return pd.DataFrame(values).rename(index=METRIC_LABELS).round(2)
-
+if "history" not in st.session_state:
+    st.session_state.history = {m.id:[] for m in MISSIONS}
 with st.sidebar:
-    st.header("Normal shift")
-    hours = st.slider("Shift hours",4,12,8)
-    orders = st.number_input("Orders arriving",0,5000,500,25)
-    wage = st.number_input("Hourly wage ($)",0.,100.,20.,1.)
-    staff = tuple(st.slider(s+" workers",0,12,n) for s,n in zip(STATIONS,(4,3,2)))
-    with st.expander("Service and equipment"):
-        times = tuple(st.number_input(s+" minutes / order",.1,30.,n,.1) for s,n in zip(STATIONS,(5.,3.,2.)))
-        equipment = tuple(st.slider(s+" workstations",0,12,n) for s,n in zip(STATIONS,(12,3,2)))
-        cv = st.slider("Processing-time coefficient of variation",0.,1.,.25,.05)
-    with st.expander("Reproducibility"):
-        seed = st.number_input("First random seed",0,100000,42)
-        n_runs = st.slider("Replications",2,20,5)
-    st.caption("Cross-trained workers; one worker and workstation per active order. Full-shift wages include idle time.")
-base = Shift(orders=int(orders),minutes=hours*60,staff=staff,times=times,equipment=equipment,wage=wage,cv=cv)
-scenario = st.selectbox("Disruption",["Normal shift","Demand surge (+40%)","Two packing employees absent","Packing equipment failure","Custom stress test"])
-test = base
-if scenario == "Demand surge (+40%)":
-    test = replace(base,orders=ceil(orders*1.4))
-elif scenario == "Two packing employees absent":
-    test = replace(base,staff=(staff[0],max(0,staff[1]-2),staff[2]))
-elif scenario == "Packing equipment failure":
-    test = replace(base,outage_duration=60)
-elif scenario == "Custom stress test":
-    with st.expander("Disrupted shift controls",expanded=True):
-        volume = st.number_input("Disrupted orders",0,10000,int(orders))
-        ts = tuple(st.slider(s+" available workers",0,12,n) for s,n in zip(STATIONS,staff))
-        tt = tuple(st.number_input(s+" disrupted minutes / order",.1,60.,float(n),.1) for s,n in zip(STATIONS,times))
-        te = tuple(st.slider(s+" available workstations",0,12,n) for s,n in zip(STATIONS,equipment))
-        station = st.selectbox("Station stopped",STATIONS)
-        start = st.slider("Outage starts (minute)",0,hours*60,min(180,hours*60))
-        duration = st.slider("Outage duration (minutes)",0,hours*60,60)
-        test = replace(base,orders=int(volume),staff=ts,times=tt,equipment=te,outage_station=STATIONS.index(station),outage_start=start,outage_duration=duration)
-seeds = tuple(range(int(seed),int(seed)+n_runs))
-normal, disrupted = runs(base,seeds), runs(test,seeds)
-bs, ds = summary(normal), summary(disrupted)
-trace = pd.DataFrame(disrupted[0]["trace"])
-tabs = st.tabs(["Shift comparison","Queues & resources","Staffing search","Methods & experiments","Export"])
-with tabs[0]:
-    cols = st.columns(4)
-    for col,key,label in zip(cols,("completed","unfinished","cycle_minutes","cost_per_order"),("Completed orders","Unfinished orders","Cycle time · min","Labor $ / completion")):
-        delta = ds[key]-bs[key] if ds[key] is not None and bs[key] is not None else None
-        col.metric(label,fmt(ds[key]),fmt(delta) if delta is not None else None,delta_color="normal" if key=="completed" else "inverse")
-    st.dataframe(comparison_table({"Normal":bs,"Disrupted":ds}),use_container_width=True)
-    paired = [b["completed"]-a["completed"] for a,b in zip(normal,disrupted)]
-    st.write(f"Paired completion change: **{mean(paired):+.1f} orders**; replication SD **{stdev(paired):.1f}**, across {n_runs} seeds. SD describes variability, not a confidence interval.")
-    chart = pd.DataFrame([{"seed":s,"shift":label,"completed":r["completed"]} for label,rr in (("Normal",normal),("Disrupted",disrupted)) for s,r in zip(seeds,rr)])
-    st.plotly_chart(px.bar(chart,x="seed",y="completed",color="shift",barmode="group",color_discrete_sequence=["#0d9488","#e58a32"]),use_container_width=True)
-    cap = capacity(test)
-    st.subheader("Capacity reference")
-    st.write("Tightest theoretical station(s): **"+", ".join(cap["bottlenecks"])+"**")
-    st.dataframe(pd.DataFrame([cap["capacity"]],index=["Nominal orders / shift"]),use_container_width=True)
-    st.caption("Mean-time capacity is a planning reference, not a strict stochastic upper bound. Ties use unrounded capacities. Pipeline fill and arrival timing affect finite-shift output.")
-    evidence = pd.DataFrame(disrupted[0]["stations"])
-    largest = evidence.loc[evidence.average_queue.idxmax()]
-    st.info(f"In seed {seeds[0]}, {largest['station']} had the largest time-average queue ({largest['average_queue']:.1f} orders). Inspect resource utilization to distinguish workload pressure from equipment constraints. Improving one station can move queues downstream.")
-with tabs[1]:
-    st.caption(f"Detailed trace: seed {seeds[0]}. Summary metrics average all replications.")
-    details = pd.DataFrame(disrupted[0]["stations"])
-    st.dataframe(details,use_container_width=True)
-    st.plotly_chart(px.line(trace,x="minute",y=list(STATIONS),labels={"value":"Queued orders","variable":"Station"}),use_container_width=True)
-    util = details.melt(id_vars="station",value_vars=["worker_utilization","workstation_utilization"],var_name="resource",value_name="utilization")
-    fig = px.bar(util,x="station",y="utilization",color="resource",barmode="group")
-    fig.update_yaxes(tickformat=".0%",range=[0,1])
-    st.plotly_chart(fig,use_container_width=True)
-    st.caption("Utilization = productive processing / installed resource minutes. Downtime reduces productive utilization. Queues exclude in-service orders. Cycle and waiting averages include completed orders only; delayed unfinished orders are excluded.")
-with tabs[2]:
-    st.subheader("Redistribute the available workforce")
-    st.write("Exhaustive integer search: same headcount and wage, 1–12 workers per station, fixed equipment. Rank mean completions first, then mean cycle time. Train on seeds 100–102; validate on separate seeds 200–209.")
-    if sum(test.staff)<3:
-        st.warning("At least three available workers are required for one worker per station.")
-    elif st.button("Evaluate staffing allocations",type="primary"):
-        with st.spinner("Evaluating allocations…"):
-            candidates = search(test)
-            improved = replace(test,staff=candidates[0]["staff"])
-            validation_seeds = tuple(range(200,210))
-            before,after = runs(test,validation_seeds),runs(improved,validation_seeds)
-        st.write(f"Selected picking / packing / shipping: **{' / '.join(map(str,improved.staff))}**")
-        change = mean(b["completed"]-a["completed"] for a,b in zip(before,after))
-        st.write(f"Held-out paired change: **{change:+.1f} completions**. Full-shift labor budget: **${sum(test.staff)*hours*wage:,.2f}** for both allocations.")
-        if change<=0:
-            st.warning("No held-out mean throughput improvement. Retain the current allocation or investigate more replications.")
-        else:
-            st.success("Held-out mean throughput improved in this synthetic experiment. Verify cross-training and equipment assumptions before recommending an operational change.")
-        st.dataframe(comparison_table({"Current":summary(before),"Selected":summary(after)}),use_container_width=True)
-        table = pd.DataFrame(candidates)
-        st.dataframe(table,use_container_width=True)
-        st.download_button("Download staffing search CSV",table.to_csv(index=False),"staffing_search.csv","text/csv")
-        st.download_button("Download staffing validation JSON",json.dumps({"config":asdict(test),"selected":asdict(improved),"training_seeds":[100,101,102],"validation_seeds":validation_seeds,"before":before,"after":after},allow_nan=False),"staffing_validation.json","application/json")
-with tabs[3]:
-    st.markdown('''### Model contract
-Orders arrive uniformly across the shift conditional on a fixed count, then visit picking → packing → shipping. Gamma service times use the entered mean and coefficient of variation (zero means deterministic). FCFS station pools limit simultaneous work to min(workers, workstations). A full-station outage pauses active work and resumes without losing progress; workers remain reserved.
+    st.markdown("### 📦 FlowForge")
+    st.caption("LEARN BY RUNNING THE SHIFT")
+    section = st.radio("Explore",["Challenge room","Free simulator","How to play"],label_visibility="collapsed",key="section")
+    st.divider()
+    passed = sum(any(h['successes']>=8 for h in st.session_state.history[m.id]) for m in MISSIONS)
+    progress_text = st.empty()
+    progress_text.markdown(f"**{passed} / {len(MISSIONS)} missions solved**")
+    mission_progress = st.progress(passed/len(MISSIONS))
+    for m in MISSIONS:
+        done = any(h['successes']>=8 for h in st.session_state.history[m.id])
+        st.caption(('✓ ' if done else '○ ')+m.title)
+    st.caption("Progress stays in this browser session. Download your notebook to keep your experiments.")
+    st.divider()
+    st.caption("A synthetic learning environment. Decisions affect simulated orders, not a real warehouse.")
 
-The shift starts empty and stops without overtime or drain-down. Available workers receive full-shift wages, including idle time. Absent workers are excluded from labor cost. No benefits, equipment cost, inventory shortages, travel, breaks, batching, rework, skill differences or downstream blocking are modeled.
+if section == "Free simulator":
+    runpy.run_path(str(Path(__file__).with_name("workbench.py")),run_name="__main__")
+    st.stop()
+if section == "How to play":
+    st.title("A decision. A test. A lesson.")
+    st.write("You run a small warehouse for one shift. Customer orders pass through three steps:")
+    for name,description in zip(STATIONS,("Find and collect the items.","Box the items and prepare the parcel.","Label and hand off the parcel for dispatch.")):
+        st.subheader(name)
+        st.write(description)
+    st.markdown('''1. **Read the situation.** Each mission has a delivery target and a fixed team.
+2. **Build a plan.** Move workers, rent a bench or shorten a repair when the mission allows it.
+3. **Predict the result.** Make a small prediction before seeing the answer.
+4. **Run the shift.** The simulator tests the same plan across ten random shifts.
+5. **Watch the queue.** Scrub the replay to see where work accumulates.
+6. **Try another decision.** Keep an experiment notebook and explain your result.
 
-### Three experiments to reproduce
-1. **Demand surge:** select +40% demand. Compare unfinished orders, queues and throughput. Investigate whether extra arrivals produce backlog without proportional output.
-2. **Employee shortage:** remove two packing workers, then run staffing search at reduced headcount. Investigate whether redistribution helps under equipment limits.
-3. **Equipment downtime:** stop packing at minute 180 for 60 minutes; vary timing and duration. Investigate how queues persist after recovery.
-
-These are hypotheses, not measured facility findings. Download actual results for your settings. The repository case study records the default experiments.
-
-### Add your engineering judgment
-Record why you chose a scenario, which result surprised you, which assumption you would measure first, and whether moving workers is practical. Describe simulated gains as simulated gains.
+You solve a mission when at least eight of the ten simulated shifts reach its target within the budget. This is a teaching rule, not a guarantee about real operations.
 ''')
-with tabs[4]:
-    report = {"model_version":"0.2.0","environment":{"python":platform.python_version(),"platform":platform.system(),"simpy":version("simpy"),"streamlit":version("streamlit")},"data":"synthetic","seeds":seeds,"baseline_config":asdict(base),"stress_config":asdict(test),"baseline":normal,"stress":disrupted}
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer,"w",zipfile.ZIP_DEFLATED) as z:
-        z.writestr("experiment.json",json.dumps(report,indent=2,allow_nan=False))
-        z.writestr("summary.csv",pd.DataFrame({"Normal":bs,"Disrupted":ds}).to_csv())
-        z.writestr("stress_orders_first_seed.csv",pd.DataFrame(disrupted[0]["orders"]).to_csv(index=False))
-        z.writestr("stress_queues_first_seed.csv",trace.to_csv(index=False))
-    st.download_button("Download reproducible experiment ZIP",buffer.getvalue(),"flowforge_experiment.zip","application/zip")
-    st.caption("Configurations, seeds, per-run results, completed-order records and queue trace. No real customer data.")
+    with st.expander("What does the model assume?"):
+        st.write("Orders arrive throughout the shift. Each order needs one worker and one workstation at every station. Workers are equally skilled and cross-trained. Task times vary; the shift starts empty and ends without overtime. No breaks, travel, rework or inventory shortages are included. Equipment and repair prices are invented teaching inputs. The Free simulator contains the full model details and exports.")
+    st.stop()
+
+st.markdown('<div class="eyebrow">FLOWFORGE / THE SHIFT CHALLENGES</div>',unsafe_allow_html=True)
+st.title("Can you rescue the shift?")
+st.markdown('<p class="lead">A queue is growing. The truck will not wait. Make one decision, run the warehouse, and see what your plan actually changes.</p>',unsafe_allow_html=True)
+mid = st.radio("Choose your mission",range(len(MISSIONS)),format_func=lambda i:f"0{i+1} · {MISSIONS[i].title}",horizontal=True,key="mission")
+m = MISSIONS[mid]
+base = test_plan(mid,m.config.staff)
+st.markdown(f'<div class="brief"><div class="eyebrow" style="color:#7dd3c4">{m.subtitle}</div><h2>{m.title}</h2><p>{m.brief}</p><div class="goal">YOUR MISSION · {m.goal}</div></div>',unsafe_allow_html=True)
+cols = st.columns(4)
+cols[0].metric("Orders arriving",m.config.orders)
+cols[1].metric("People on your team",sum(m.config.staff))
+cols[2].metric("Shift length",f"{m.config.minutes/60:g} hours")
+cols[3].metric("Extra spending allowed",f"${m.budget}")
+st.caption(f"If you change nothing: about {base['baseline_mean']:.0f} orders finish and {m.config.orders-base['baseline_mean']:.0f} remain. This forecast averages the same 10 synthetic shifts used to test your plan.")
+
+st.markdown('<div class="step">01 / BUILD YOUR PLAN</div>',unsafe_allow_html=True)
+st.write("Keep the same team. Choose where each person works.")
+cols = st.columns(3)
+roles = ("Collect items from storage.","Box items at an available bench.","Prepare parcels for dispatch.")
+allocation = []
+for i,(col,s) in enumerate(zip(cols,STATIONS)):
+    with col:
+        st.markdown(f'<div class="role"><strong>{s}</strong><span>{roles[i]}<br>Typical task: {m.config.times[i]:g} min / order<br>Working positions: {m.config.equipment[i]}</span></div>',unsafe_allow_html=True)
+        allocation.append(st.number_input(s+" team",0,12,m.config.staff[i],1,key=m.id+f"_staff{i}"))
+staff = tuple(allocation)
+remaining = sum(m.config.staff)-sum(staff)
+if remaining>0:
+    st.warning(f"You still have {remaining} people to assign.")
+elif remaining<0:
+    st.warning(f"You assigned {-remaining} more people than your team has. Move them from another station.")
+else:
+    st.caption("✓ Everyone is assigned. You can move people again after testing.")
+bench = repair = False
+if m.bench_cost or m.repair_cost:
+    st.write("**Choose an intervention**")
+    a,b = st.columns(2)
+    if m.bench_cost:
+        bench = a.checkbox(f"Rent one packing bench · ${m.bench_cost}",key=m.id+"_bench",help="Adds one working position while packing is running. It does not shorten a station-wide outage.")
+    if m.repair_cost:
+        repair = b.checkbox(f"Repair crew · ${m.repair_cost}",key=m.id+"_repair",help=f"Cuts the packing stop from {m.config.outage_duration:g} to {m.repaired_duration:g} minutes.")
+cost = int(bench)*m.bench_cost+int(repair)*m.repair_cost
+valid = True
+try:
+    build_plan(m,staff,bench,repair)
+except ValueError as exc:
+    valid = False
+    if remaining==0:
+        st.warning(str(exc))
+if m.budget:
+    st.caption(f"Extra spending: ${cost} / ${m.budget}. Existing shift wages are unchanged by reassignment.")
+
+st.markdown('<div class="step">02 / MAKE A PREDICTION</div>',unsafe_allow_html=True)
+prediction = st.radio("Compared with changing nothing, my plan will finish…",["More orders","About the same (within 5 orders)","Fewer orders"],horizontal=True,key=m.id+"_prediction")
+note = st.text_input("Why do you think so?",placeholder="Example: the packers are receiving work faster than they can box it…",key=m.id+"_reason")
+run, hint = st.columns([2,3])
+clicked = run.button("Run my shift →",type="primary",disabled=not valid,use_container_width=True)
+with hint:
+    if st.button("Give me a hint",key=m.id+"_hint_button"):
+        st.session_state[m.id+"_hint"] = True
+if st.session_state.get(m.id+"_hint"):
+    st.info(m.hint)
+if clicked:
+    with st.spinner("Running your plan through ten simulated shifts…"):
+        result = test_plan(mid,staff,bench,repair)
+    attempt = {"attempt":len(st.session_state.history[m.id])+1,"staff":staff,"bench":bench,"repair":repair,
+        "extra_cost":cost,"mean_completed":round(result['plan_mean'],1),"successes":result['successes'],
+        "prediction":prediction,"reason":note}
+    st.session_state.history[m.id].append(attempt)
+    st.session_state[m.id+"_result"] = result
+    st.session_state[m.id+"_attempt"] = attempt
+    passed = sum(any(h['successes']>=8 for h in st.session_state.history[item.id]) for item in MISSIONS)
+    progress_text.markdown(f"**{passed} / {len(MISSIONS)} missions solved**")
+    mission_progress.progress(passed/len(MISSIONS))
+
+result = st.session_state.get(m.id+"_result")
+if result:
+    attempt = st.session_state[m.id+"_attempt"]
+    st.divider()
+    st.markdown('<div class="step">03 / THE REVEAL</div>',unsafe_allow_html=True)
+    if (staff,bench,repair)!=(tuple(attempt['staff']),attempt['bench'],attempt['repair']):
+        st.info("You have changed the controls. These results show your last tested plan; run again to test the new one.")
+    if result['successes']>=8:
+        st.success(f"Mission solved. Your plan reached the target in {result['successes']} of 10 shifts.")
+    else:
+        st.warning(f"Not there yet: {result['successes']} of 10 shifts reached the target. Change one decision and try again.")
+    st.write(f"**Tested team:** {attempt['staff'][0]} picking → {attempt['staff'][1]} packing → {attempt['staff'][2]} shipping. Extra spending: **${attempt['extra_cost']}**.")
+    a,b,c = st.columns(3)
+    a.metric("Orders completed · average",f"{result['plan_mean']:.0f}",f"{result['gain']:+.0f} vs doing nothing")
+    b.metric("Orders still unfinished",f"{m.config.orders-result['plan_mean']:.0f}")
+    c.metric("Shifts reaching your goal",f"{result['successes']} / 10")
+    actual = "More orders" if result['gain']>5 else "Fewer orders" if result['gain']< -5 else "About the same (within 5 orders)"
+    st.write(f"**Your prediction:** {attempt['prediction']}. **What happened:** {actual.lower()}.")
+    if attempt['reason']:
+        st.caption("Your explanation: "+attempt['reason'])
+    if result['gain']<=5 and staff!=m.config.staff:
+        st.write("A different allocation is not automatically a better one. Look at both worker coverage and working positions before moving another person.")
+    st.write(m.lesson)
+    view, evidence, notebook = st.tabs(["Watch the shift","Why did this happen?","My experiment notebook"])
+    with view:
+        chosen = st.radio("Replay",["My plan","Change nothing"],horizontal=True,key=m.id+"_replay")
+        index = st.select_slider("Choose a simulated run",options=list(range(1,11)),value=1,key=m.id+"_run")-1
+        selected = result['after' if chosen=="My plan" else 'before'][index]
+        components.html(replay_html(selected,chosen,m.target),height=370,scrolling=False)
+        st.caption(f"At shift close: {selected['completed']} completed, {selected['unfinished']} unfinished. The final playback snapshot is taken just before close.")
+    with evidence:
+        names = list(STATIONS)
+        after_q = [mean(r['stations'][i]['average_queue'] for r in result['after']) for i in range(3)]
+        chart = pd.DataFrame({'Station':names*2,'Average orders waiting':result['queue_means']+after_q,'Plan':['Change nothing']*3+['My plan']*3})
+        st.plotly_chart(px.bar(chart,x='Station',y='Average orders waiting',color='Plan',barmode='group',color_discrete_sequence=['#9aaeb8','#0d9488']),use_container_width=True)
+        st.write("The tallest bar shows where orders spent the most time waiting. It is evidence of queue pressure, not proof that adding a worker there will help. Check whether equipment or downtime prevents that worker from doing useful work.")
+        cap = capacity(result['config'])
+        st.caption("Mean-time capacity reference for your plan: "+' · '.join(f"{s} {n}" for s,n in cap['capacity'].items())+" orders. This reference does not predict the exact number completed.")
+        totals = pd.DataFrame({'Run':range(1,11),'Change nothing':[r['completed'] for r in result['before']],'My plan':[r['completed'] for r in result['after']]})
+        st.dataframe(totals,hide_index=True,use_container_width=True)
+        st.caption("Both plans use the same arrival and service random inputs. Ten successful runs are ten observations, not a 100% real-world guarantee.")
+        if st.button("Reveal a working reference plan",key=m.id+"_reference_button"):
+            st.session_state[m.id+"_reference"] = True
+        if st.session_state.get(m.id+"_reference"):
+            ref = test_plan(mid,m.reference_staff,m.reference_bench,m.reference_repair)
+            changes = [' / '.join(map(str,m.reference_staff))+' workers (picking / packing / shipping)']
+            if m.reference_bench: changes.append('rent one bench')
+            if m.reference_repair: changes.append('use the repair crew')
+            st.info('Reference: '+', '.join(changes)+f". It completes {ref['plan_mean']:.1f} orders on average and reaches the target in {ref['successes']}/10 runs. This is a tested teaching example, not a claim of optimality.")
+    with notebook:
+        history = st.session_state.history[m.id]
+        st.dataframe(pd.DataFrame(history),hide_index=True,use_container_width=True)
+        reflection = st.text_area("What changed your mind? What will you try next?",key=m.id+"_reflection")
+        report = {'mission':m.id,'model_version':'0.3.0','synthetic':True,'seeds':SEEDS,'mission_config':asdict(m.config),'tested_config':asdict(result['config']),'history':history,'reflection':reflection,'baseline':result['before'],'tested':result['after']}
+        st.download_button("Save my experiment notebook",json.dumps(report,indent=2),f"flowforge_{m.id}_notebook.json","application/json")
+else:
+    st.caption("Your prediction and result will appear here after your first run. Change one thing at a time to learn what caused the difference.")

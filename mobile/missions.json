@@ -1,0 +1,137 @@
+[
+  {
+    "id": "callout",
+    "title": "The missing packers",
+    "subtitle": "01 / Move people, not the budget",
+    "brief": "Two packers called out. Seven people are here, and orders keep arriving. You can move workers between stations, but nobody else can come in today.",
+    "goal": "Complete at least 270 of 500 orders in at least 8 of 10 simulated shifts.",
+    "config": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        1,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "target": 270,
+    "budget": 0,
+    "bench_cost": 0,
+    "repair_cost": 0,
+    "repaired_duration": 0,
+    "hint": "Compare each station's processing time and worker count. Which station feeds work faster than the next can handle it?",
+    "lesson": "The station with the longest task is not always the bottleneck. Staffing changes the rate. Once packing recovers, picking can become the next constraint.",
+    "reference_staff": [
+      3,
+      2,
+      2
+    ],
+    "reference_bench": false,
+    "reference_repair": false
+  },
+  {
+    "id": "bench",
+    "title": "People cannot fix everything",
+    "subtitle": "02 / Find the physical constraint",
+    "brief": "Nine people showed up, but only one packing bench works. There is a spare bench available to rent for the shift. Decide whether moving people is enough.",
+    "goal": "Complete at least 300 of 500 orders in at least 8 of 10 simulated shifts. Spend no more than $40 extra.",
+    "config": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        1,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "target": 300,
+    "budget": 40,
+    "bench_cost": 40,
+    "repair_cost": 0,
+    "repaired_duration": 0,
+    "hint": "How many people can actually pack at the same time? Extra workers cannot share a single occupied bench.",
+    "lesson": "People and equipment are joint constraints. A worker assigned to a station is not necessarily a worker who can work.",
+    "reference_staff": [
+      4,
+      3,
+      2
+    ],
+    "reference_bench": true,
+    "reference_repair": false
+  },
+  {
+    "id": "repair",
+    "title": "The two-hour breakdown",
+    "subtitle": "03 / Buy the right recovery",
+    "brief": "A packing failure will stop the whole station from minute 180 to 300. You have $60: rent one bench for $40, or pay $60 for a repair crew that cuts the stop to 30 minutes. A spare bench does not bypass this station-wide failure.",
+    "goal": "Complete at least 420 of 650 orders in at least 8 of 10 simulated shifts. Spend no more than $60 extra.",
+    "config": {
+      "orders": 650,
+      "minutes": 480,
+      "staff": [
+        5,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 120
+    },
+    "target": 420,
+    "budget": 60,
+    "bench_cost": 40,
+    "repair_cost": 60,
+    "repaired_duration": 30,
+    "hint": "A bench adds capacity while the station is running. A repair changes how long it cannot run. Which loss are you trying to fix?",
+    "lesson": "Capacity and availability solve different problems. Spend against the cause of the queue, not its most visible symptom.",
+    "reference_staff": [
+      5,
+      3,
+      2
+    ],
+    "reference_bench": false,
+    "reference_repair": true
+  }
+]

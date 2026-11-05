@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {simulate,evaluate,plan} from './engine.mjs';
+const missions=JSON.parse(readFileSync(new URL('./missions.json',import.meta.url)));
+for(const m of missions)test('Feasible reference: '+m.id,()=>{const r=evaluate(m,m.reference_staff,m.reference_bench,m.reference_repair);assert.ok(r.successes>=8);assert.ok(r.cost<=m.budget);assert.ok(r.gain>0);});
+test('Reproducible and conserved',()=>{const c=missions[0].config;const a=simulate(c);assert.deepEqual(a,simulate(c));assert.equal(a.completed+a.unfinished,c.orders);});
+test('No staffing or full outage means no output',()=>{const c=missions[0].config;assert.equal(simulate({...c,staff:[0,1,2]}).completed,0);assert.equal(simulate({...c,outage_start:0,outage_duration:c.minutes}).completed,0);});
+test('No invented workers or overspending',()=>{assert.throws(()=>plan(missions[0],[7,7,7]));assert.throws(()=>plan(missions[2],[5,3,2],true,true));});
+test('One deterministic order takes ten minutes',()=>{const r=simulate({...missions[0].config,orders:1,minutes:100000,cv:0});assert.equal(r.completed,1);});

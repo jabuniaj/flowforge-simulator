@@ -1,5 +1,13 @@
 # FlowForge — Warehouse & Factory Optimization Simulator
 
+## New: learn by rescuing a shift
+
+The default app now opens a **Challenge room for students**, rather than a table of simulation metrics. Choose a mission, assign the available team, predict the result, and test your decision across ten synthetic shifts. Scrub a queue replay, compare the evidence, and save your experiment notebook. The original engineering dashboard remains under **Free simulator**.
+
+Three missions cover a packing-worker shortage, a physical workstation constraint, and a station-wide breakdown. Goals are feasible tested teaching targets; they are not real-world performance promises. Progress in the Streamlit app lasts for the current browser session.
+
+An **offline native mobile client** is in [`mobile/`](mobile/README.md), with saved device progress and the same mission rules. App Store/Google Play publication is not complete: developer enrollment, signing, device testing and review are still required. See the [release status](docs/MOBILE_RELEASE.md).
+
 An engineering portfolio project for testing warehouse staffing decisions under disruption. The current scope is a warehouse order-fulfillment line; factory routing is future work.
 
 **[Open the live Shift Stress Test](https://flowforge-simulator-uyfsb446fp5yi7yw5q2cdw.streamlit.app/)**

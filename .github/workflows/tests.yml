@@ -10,3 +10,20 @@ jobs:
           python-version: '3.11'
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+        working-directory: mobile
+      - run: npm test
+        working-directory: mobile
+      - run: npx expo export --platform all
+        working-directory: mobile
+        env:
+          EXPO_NO_TELEMETRY: '1'

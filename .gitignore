@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Mobile development/build outputs
+node_modules/
+.expo/
+mobile/dist/
+*.ipa
+*.aab
+*.apk
