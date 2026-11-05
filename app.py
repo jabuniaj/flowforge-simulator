@@ -87,7 +87,7 @@ for i,(col,s) in enumerate(zip(cols,STATIONS)):
 staff = tuple(allocation)
 remaining = sum(m.config.staff)-sum(staff)
 if remaining>0:
-    st.warning(f"You still have {remaining} people to assign.")
+    st.warning(f"You still have {remaining} {'person' if remaining==1 else 'people'} to assign.")
 elif remaining<0:
     st.warning(f"You assigned {-remaining} more people than your team has. Move them from another station.")
 else:

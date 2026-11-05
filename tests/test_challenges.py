@@ -2,6 +2,13 @@ import pytest
 from streamlit.testing.v1 import AppTest
 from pathlib import Path
 from flowforge.challenges import MISSIONS, build_plan, evaluate
+from dataclasses import asdict
+import json
+
+
+def test_mobile_mission_rules_match_python_source():
+    path=Path(__file__).resolve().parents[1]/'mobile/missions.json'
+    assert json.loads(path.read_text())==json.loads(json.dumps([asdict(m) for m in MISSIONS]))
 
 
 @pytest.mark.parametrize("mission",MISSIONS)
