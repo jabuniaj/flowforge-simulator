@@ -1,0 +1,306 @@
+{
+  "normal": {
+    "config": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "selected": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "seeds": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209
+    ],
+    "before": {
+      "completed": 376.1,
+      "unfinished": 123.9,
+      "cycle_minutes": 65.50250846939493,
+      "waiting_minutes": 55.507491561773655,
+      "cost_per_order": 3.829372079020112
+    },
+    "after": {
+      "completed": 376.1,
+      "unfinished": 123.9,
+      "cycle_minutes": 65.50250846939493,
+      "waiting_minutes": 55.507491561773655,
+      "cost_per_order": 3.829372079020112
+    }
+  },
+  "demand_surge": {
+    "config": {
+      "orders": 700,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "selected": {
+      "orders": 700,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "seeds": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209
+    ],
+    "before": {
+      "completed": 377.5,
+      "unfinished": 322.5,
+      "cycle_minutes": 117.68081095829217,
+      "waiting_minutes": 107.68717426287559,
+      "cost_per_order": 3.8149713906532345
+    },
+    "after": {
+      "completed": 377.5,
+      "unfinished": 322.5,
+      "cycle_minutes": 117.68081095829217,
+      "waiting_minutes": 107.68717426287559,
+      "cost_per_order": 3.8149713906532345
+    }
+  },
+  "employee_shortage": {
+    "config": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        1,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "selected": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        3,
+        2,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 0.0
+    },
+    "seeds": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209
+    ],
+    "before": {
+      "completed": 156.6,
+      "unfinished": 343.4,
+      "cycle_minutes": 171.4716678237849,
+      "waiting_minutes": 161.49579262662306,
+      "cost_per_order": 7.153788083098251
+    },
+    "after": {
+      "completed": 283.2,
+      "unfinished": 216.8,
+      "cycle_minutes": 110.58855492939965,
+      "waiting_minutes": 100.58908377366767,
+      "cost_per_order": 3.9557960385941406
+    }
+  },
+  "equipment_downtime": {
+    "config": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 60
+    },
+    "selected": {
+      "orders": 500,
+      "minutes": 480,
+      "staff": [
+        4,
+        3,
+        2
+      ],
+      "times": [
+        5.0,
+        3.0,
+        2.0
+      ],
+      "equipment": [
+        12,
+        3,
+        2
+      ],
+      "wage": 20.0,
+      "cv": 0.25,
+      "outage_station": 1,
+      "outage_start": 180.0,
+      "outage_duration": 60
+    },
+    "seeds": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209
+    ],
+    "before": {
+      "completed": 370.7,
+      "unfinished": 129.3,
+      "cycle_minutes": 86.28929929344491,
+      "waiting_minutes": 76.29793451897021,
+      "cost_per_order": 3.8853111641528852
+    },
+    "after": {
+      "completed": 370.7,
+      "unfinished": 129.3,
+      "cycle_minutes": 86.28929929344491,
+      "waiting_minutes": 76.29793451897021,
+      "cost_per_order": 3.8853111641528852
+    }
+  }
+}

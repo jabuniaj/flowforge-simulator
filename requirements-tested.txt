@@ -1,0 +1,6 @@
+# Direct dependencies used in local validation (Python 3.12).
+streamlit==1.66.1
+simpy==4.1.2
+pandas==2.3.3
+plotly==6.9.0
+pytest==9.2.0
