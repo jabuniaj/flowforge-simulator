@@ -46,7 +46,7 @@ def capacity(config):
     tight = min(caps)
     return {"capacity": dict(zip(STATIONS, map(floor, caps))),
             "bottlenecks": [s for s, c in zip(STATIONS, caps) if isclose(c, tight, rel_tol=1e-9, abs_tol=1e-9)],
-            "completed_upper_bound": min(config.orders, floor(tight))}
+            "nominal_completed": min(config.orders, floor(tight))}
 
 
 def simulate(config, seed=42):

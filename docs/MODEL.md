@@ -22,13 +22,13 @@ All events at or before shift end execute; later work is censored. No warm-up de
 - Productive worker utilization: processing minutes / (workers × shift minutes). Workstation utilization uses installed workstations in the denominator. Both exclude paused processing and include only work before close.
 - Cost/order: full-shift wages / completed orders; undefined with no completions. Costs exclude absent staff, benefits, equipment and overtime.
 
-The capacity calculator uses floor(min(staff, equipment) × available minutes / mean service time). It identifies all ties using the unrounded capacities with numerical tolerance. This is not a finite-shift completion forecast or a strict stochastic upper bound. The legacy output key `completed_upper_bound` denotes the nominal deterministic bound only.
+The capacity calculator uses floor(min(staff, equipment) × available minutes / mean service time). It identifies all ties using the unrounded capacities with numerical tolerance. This is not a finite-shift completion forecast or a strict stochastic upper bound. `nominal_completed` is the lesser of incoming orders and this nominal capacity reference.
 
 ## Randomness and comparisons
 
 Arrival streams use a seeded Python Random instance. Service streams are keyed to seed, order and station, so reallocating workers does not consume random numbers in a different event order. Different demand counts change sorted arrival times; demand comparisons share randomness but do not preserve each order's arrival timestamp. Results are repeatable for the same model, Python environment, inputs and seeds.
 
-The UI shows replication means and the sample standard deviation of paired completion differences. It does not display a confidence interval or claim statistical significance. Per-run labor cost/order is averaged across runs with at least one completion; inspect individual runs for zero-completion cases.
+The UI shows replication means and the sample standard deviation of paired completion differences. It does not display a confidence interval or claim statistical significance. Per-run labor cost/order is averaged across runs with at least one completion; inspect individual runs for zero-completion cases. The replay command requires exact integer counts and tolerates float differences of 1e-10 relative or 1e-8 absolute. A downloaded Linux/Python 3.14 report replayed on Windows/Python 3.12 matched within that tolerance; bitwise equality is reported separately.
 
 ## Staffing search
 

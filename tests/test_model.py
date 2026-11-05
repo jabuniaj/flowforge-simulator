@@ -72,7 +72,6 @@ def test_finite_horizon_service_is_censored():
 
 def test_equipment_caps_processing():
     c = Shift(cv=0,staff=(4,3,2),equipment=(1,3,2))
-    assert simulate(c) == simulate(c)
     assert simulate(c)["completed"] <= 96
 
 

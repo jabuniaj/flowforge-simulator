@@ -5,6 +5,8 @@ from math import ceil
 import io
 import json
 import zipfile
+import platform
+from importlib.metadata import version
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -34,6 +36,14 @@ def summary(results):
 
 def fmt(value):
     return f"{value:,.1f}" if value is not None else "N/A"
+
+METRIC_LABELS = {"completed":"Completed orders", "unfinished":"Unfinished orders",
+                 "throughput_per_hour":"Throughput (orders/hour)","cycle_minutes":"Cycle time (min)",
+                 "waiting_minutes":"Waiting time (min)","labor_cost":"Labor cost ($)",
+                 "cost_per_order":"Labor cost / completion ($)"}
+
+def comparison_table(values):
+    return pd.DataFrame(values).rename(index=METRIC_LABELS).round(2)
 
 with st.sidebar:
     st.header("Normal shift")
@@ -78,7 +88,7 @@ with tabs[0]:
     for col,key,label in zip(cols,("completed","unfinished","cycle_minutes","cost_per_order"),("Completed orders","Unfinished orders","Cycle time · min","Labor $ / completion")):
         delta = ds[key]-bs[key] if ds[key] is not None and bs[key] is not None else None
         col.metric(label,fmt(ds[key]),fmt(delta) if delta is not None else None,delta_color="normal" if key=="completed" else "inverse")
-    st.dataframe(pd.DataFrame({"Normal":bs,"Disrupted":ds}),use_container_width=True)
+    st.dataframe(comparison_table({"Normal":bs,"Disrupted":ds}),use_container_width=True)
     paired = [b["completed"]-a["completed"] for a,b in zip(normal,disrupted)]
     st.write(f"Paired completion change: **{mean(paired):+.1f} orders**; replication SD **{stdev(paired):.1f}**, across {n_runs} seeds. SD describes variability, not a confidence interval.")
     chart = pd.DataFrame([{"seed":s,"shift":label,"completed":r["completed"]} for label,rr in (("Normal",normal),("Disrupted",disrupted)) for s,r in zip(seeds,rr)])
@@ -119,7 +129,7 @@ with tabs[2]:
             st.warning("No held-out mean throughput improvement. Retain the current allocation or investigate more replications.")
         else:
             st.success("Held-out mean throughput improved in this synthetic experiment. Verify cross-training and equipment assumptions before recommending an operational change.")
-        st.dataframe(pd.DataFrame({"Current":summary(before),"Selected":summary(after)}),use_container_width=True)
+        st.dataframe(comparison_table({"Current":summary(before),"Selected":summary(after)}),use_container_width=True)
         table = pd.DataFrame(candidates)
         st.dataframe(table,use_container_width=True)
         st.download_button("Download staffing search CSV",table.to_csv(index=False),"staffing_search.csv","text/csv")
@@ -141,7 +151,7 @@ These are hypotheses, not measured facility findings. Download actual results fo
 Record why you chose a scenario, which result surprised you, which assumption you would measure first, and whether moving workers is practical. Describe simulated gains as simulated gains.
 ''')
 with tabs[4]:
-    report = {"model_version":"0.2.0","data":"synthetic","seeds":seeds,"baseline_config":asdict(base),"stress_config":asdict(test),"baseline":normal,"stress":disrupted}
+    report = {"model_version":"0.2.0","environment":{"python":platform.python_version(),"platform":platform.system(),"simpy":version("simpy"),"streamlit":version("streamlit")},"data":"synthetic","seeds":seeds,"baseline_config":asdict(base),"stress_config":asdict(test),"baseline":normal,"stress":disrupted}
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer,"w",zipfile.ZIP_DEFLATED) as z:
         z.writestr("experiment.json",json.dumps(report,indent=2,allow_nan=False))

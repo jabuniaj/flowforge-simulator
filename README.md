@@ -4,6 +4,8 @@ An engineering portfolio project for testing warehouse staffing decisions under 
 
 **[Open the live Shift Stress Test](https://flowforge-simulator-uyfsb446fp5yi7yw5q2cdw.streamlit.app/)**
 
+![Live staffing search](docs/screenshots/staffing.jpg)
+
 FlowForge follows orders through picking, packing and shipping with a SimPy discrete-event simulation. It compares a normal shift against demand surges, absences, equipment downtime or custom settings. All inputs are **synthetic assumptions**, not measurements from a real facility.
 
 ## What works
@@ -27,6 +29,7 @@ python -m pip install -r requirements-dev.txt
 python -m streamlit run app.py
 python -m pytest -q
 python -m scripts.experiments
+python -m scripts.replay path/to/flowforge_experiment.zip
 ```
 
 The experiment script rewrites `docs/experiment_results.json`. Production needs only `requirements.txt`. The tested direct dependency versions are recorded in `requirements-tested.txt`; use that file to reproduce this release's environment.
